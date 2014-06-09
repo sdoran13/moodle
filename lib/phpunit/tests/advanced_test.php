@@ -89,7 +89,7 @@ class core_phpunit_advanced_testcase extends advanced_testcase {
         $this->assertEquals(3, $_SESSION['USER']->id);
         $this->assertSame($_SESSION['USER'], $USER);
 
-        session_set_user($user);
+        \core\session\manager::set_user($user);
         $this->assertEquals(2, $USER->id);
         $this->assertEquals(2, $_SESSION['USER']->id);
         $this->assertSame($_SESSION['USER'], $USER);
@@ -334,6 +334,59 @@ class core_phpunit_advanced_testcase extends advanced_testcase {
         $this->assertTrue($DB->record_exists('user', array('username'=>'onemore')));
     }
 
+    public function test_assert_time_current() {
+        $this->assertTimeCurrent(time());
+
+        $this->setCurrentTimeStart();
+        $this->assertTimeCurrent(time());
+        sleep(2);
+        $this->assertTimeCurrent(time());
+        $this->assertTimeCurrent(time()-1);
+
+        try {
+            $this->setCurrentTimeStart();
+            $this->assertTimeCurrent(time()+10);
+            $this->fail('Failed assert expected');
+        } catch (Exception $e) {
+            $this->assertInstanceOf('PHPUnit_Framework_ExpectationFailedException', $e);
+        }
+
+        try {
+            $this->setCurrentTimeStart();
+            $this->assertTimeCurrent(time()-10);
+            $this->fail('Failed assert expected');
+        } catch (Exception $e) {
+            $this->assertInstanceOf('PHPUnit_Framework_ExpectationFailedException', $e);
+        }
+    }
+
+    public function test_message_processors_reset() {
+        global $DB;
+
+        $this->resetAfterTest(true);
+
+        // Get all processors first.
+        $processors1 = get_message_processors();
+
+        // Add a new message processor and get all processors again.
+        $processor = new stdClass();
+        $processor->name = 'test_processor';
+        $processor->enabled = 1;
+        $DB->insert_record('message_processors', $processor);
+
+        $processors2 = get_message_processors();
+
+        // Assert that new processor still haven't been added to the list.
+        $this->assertSame($processors1, $processors2);
+
+        // Reset message processors data.
+        $processors3 = get_message_processors(false, true);
+        // Now, list of processors should not be the same any more,
+        // And we should have one more message processor in the list.
+        $this->assertNotSame($processors1, $processors3);
+        $this->assertEquals(count($processors1) + 1, count($processors3));
+    }
+
     public function test_message_redirection() {
         $this->preventResetByRollback(); // Messaging is not compatible with transactions...
         $this->resetAfterTest(false);
@@ -352,6 +405,7 @@ class core_phpunit_advanced_testcase extends advanced_testcase {
         $message1->fullmessageformat = FORMAT_MARKDOWN;
         $message1->fullmessagehtml   = '<p>message body</p>';
         $message1->smallmessage      = 'small message';
+        $message1->notification      = 0;
 
         $message2 = new stdClass();
         $message2->component         = 'moodle';
@@ -363,6 +417,7 @@ class core_phpunit_advanced_testcase extends advanced_testcase {
         $message2->fullmessageformat = FORMAT_MARKDOWN;
         $message2->fullmessagehtml   = '<p>message body</p>';
         $message2->smallmessage      = 'small message';
+        $message2->notification      = 0;
 
         // There should be debugging message without redirection.
         message_send($message1);
@@ -425,6 +480,7 @@ class core_phpunit_advanced_testcase extends advanced_testcase {
         $message3->fullmessageformat = FORMAT_MARKDOWN;
         $message3->fullmessagehtml   = '<p>message body</p>';
         $message3->smallmessage      = 'small message';
+        $message3->notification      = 0;
 
         try {
             message_send($message3);
@@ -470,6 +526,7 @@ class core_phpunit_advanced_testcase extends advanced_testcase {
         $message->fullmessageformat = FORMAT_MARKDOWN;
         $message->fullmessagehtml   = '<p>message body</p>';
         $message->smallmessage      = 'small message';
+        $message->notification      = 0;
 
         message_send($message);
         $this->assertEquals(2, $sink->count());

@@ -255,8 +255,15 @@
         set_user_preference('data_perpage_'.$data->id, $perpage);
     }
 
-    add_to_log($course->id, 'data', 'view', "view.php?id=$cm->id", $data->id, $cm->id);
-
+    $params = array(
+        'context' => $context,
+        'objectid' => $data->id
+    );
+    $event = \mod_data\event\course_module_viewed::create($params);
+    $event->add_record_snapshot('course_modules', $cm);
+    $event->add_record_snapshot('course', $course);
+    $event->add_record_snapshot('data', $data);
+    $event->trigger();
 
     $urlparams = array('d' => $data->id);
     if ($record) {
@@ -371,7 +378,12 @@
                 echo $OUTPUT->notification(get_string('recorddeleted','data'), 'notifysuccess');
             }
         } else {   // Print a confirmation page
-            if ($deleterecord = $DB->get_record('data_records', array('id'=>$delete))) {   // Need to check this is valid
+            $allnamefields = get_all_user_name_fields(true, 'u');
+            $dbparams = array($delete);
+            if ($deleterecord = $DB->get_record_sql("SELECT dr.*, $allnamefields
+                                                       FROM {data_records} dr
+                                                            JOIN {user} u ON dr.userid = u.id
+                                                      WHERE dr.id = ?", $dbparams, MUST_EXIST)) { // Need to check this is valid.
                 if ($deleterecord->dataid == $data->id) {                       // Must be from this database
                     $deletebutton = new single_button(new moodle_url('/mod/data/view.php?d='.$data->id.'&delete='.$delete.'&confirm=1'), get_string('delete'), 'post');
                     echo $OUTPUT->confirm(get_string('confirmdeleterecord','data'),
@@ -560,7 +572,7 @@ if ($showactivity) {
                          AND r.dataid = :dataid
                          AND r.userid = u.id ';
             $params['dataid'] = $data->id;
-            $sortorder = ' ORDER BY '.$ordering.', r.id ASC ';
+            $sortorder = " ORDER BY $ordering, r.id $order";
             $searchselect = '';
 
             // If requiredentries is not reached, only show current user's entries

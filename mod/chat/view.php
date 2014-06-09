@@ -61,7 +61,7 @@ $PAGE->set_context($context);
 
 // show some info for guests
 if (isguestuser()) {
-    $PAGE->set_title(format_string($chat->name));
+    $PAGE->set_title($chat->name);
     echo $OUTPUT->header();
     echo $OUTPUT->confirm('<p>'.get_string('noguests', 'chat').'</p>'.get_string('liketologin'),
             get_login_url(), $CFG->wwwroot.'/course/view.php?id='.$course->id);
@@ -70,7 +70,15 @@ if (isguestuser()) {
     exit;
 }
 
-add_to_log($course->id, 'chat', 'view', "view.php?id=$cm->id", $chat->id, $cm->id);
+// Log this request - the problem here is that the view page
+// does not display the chat content which is actually in a new window.
+$params = array(
+    'objectid' => $chat->id,
+    'context' => $context
+);
+$event = \mod_chat\event\course_module_viewed::create($params);
+$event->add_record_snapshot('chat', $chat);
+$event->trigger();
 
 $strenterchat    = get_string('enterchat', 'chat');
 $stridle         = get_string('idle', 'chat');
@@ -100,7 +108,7 @@ $currentgroup = groups_get_activity_group($cm, true);
 $params = array();
 if ($currentgroup) {
     $groupselect = " AND groupid = '$currentgroup'";
-    $groupparam = "&amp;groupid=$currentgroup";
+    $groupparam = "_group{$currentgroup}";
     $params['groupid'] = $currentgroup;
 } else {
     $groupselect = "";
@@ -130,12 +138,12 @@ if (has_capability('mod/chat:chat', $context)) {
     $params['id'] = $chat->id;
     $chattarget = new moodle_url("/mod/chat/gui_$CFG->chat_method/index.php", $params);
     echo '<p>';
-    echo $OUTPUT->action_link($chattarget, $strenterchat, new popup_action('click', $chattarget, "chat$course->id$chat->id$groupparam", array('height' => 500, 'width' => 700)));
+    echo $OUTPUT->action_link($chattarget, $strenterchat, new popup_action('click', $chattarget, "chat{$course->id}_{$chat->id}{$groupparam}", array('height' => 500, 'width' => 700)));
     echo '</p>';
 
     $params['id'] = $chat->id;
     $link = new moodle_url('/mod/chat/gui_basic/index.php', $params);
-    $action = new popup_action('click', $link, "chat{$course->id}{$chat->id}{$groupparam}", array('height' => 500, 'width' => 700));
+    $action = new popup_action('click', $link, "chat{$course->id}_{$chat->id}{$groupparam}", array('height' => 500, 'width' => 700));
     echo '<p>';
     echo $OUTPUT->action_link($link, get_string('noframesjs', 'message'), $action, array('title'=>get_string('modulename', 'chat')));
     echo '</p>';

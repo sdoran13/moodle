@@ -14,12 +14,15 @@ if (! $course = $DB->get_record('course', array('id'=>$id))) {
 require_course_login($course);
 $PAGE->set_pagelayout('incourse');
 
-add_to_log($course->id, 'chat', 'view all', "index.php?id=$course->id", '');
-
+$params = array(
+    'context' => context_course::instance($id)
+);
+$event = \mod_chat\event\course_module_instance_list_viewed::create($params);
+$event->add_record_snapshot('course', $course);
+$event->trigger();
 
 /// Get all required strings
 
-$strsectionname = get_string('sectionname', 'format_'.$course->format);
 $strchats = get_string('modulenameplural', 'chat');
 $strchat  = get_string('modulename', 'chat');
 
@@ -48,6 +51,7 @@ $strname  = get_string('name');
 $table = new html_table();
 
 if ($usesections) {
+    $strsectionname = get_string('sectionname', 'format_'.$course->format);
     $table->head  = array ($strsectionname, $strname);
     $table->align = array ('center', 'left');
 } else {

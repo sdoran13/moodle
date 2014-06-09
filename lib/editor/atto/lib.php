@@ -67,33 +67,68 @@ class atto_texteditor extends texteditor {
     }
 
     /**
-     * Use this editor for give element.
+     * Use this editor for given element.
      *
      * @param string $elementid
      * @param array $options
      * @param null $fpoptions
      */
     public function use_editor($elementid, array $options=null, $fpoptions=null) {
-        global $PAGE, $CFG;
-        $PAGE->requires->yui_module('moodle-editor_atto-editor',
-                                    'M.editor_atto.init',
-                                    array($this->get_init_params($elementid, $options, $fpoptions)), true);
-        require_once($CFG->libdir . '/pluginlib.php');
+        global $PAGE;
 
-        $pluginman = plugin_manager::instance();
-        $plugins = $pluginman->get_subplugins_of_plugin('editor_atto');
+        $configstr = get_config('editor_atto', 'toolbar');
 
-        $sortedplugins = array();
+        $grouplines = explode("\n", $configstr);
 
-        foreach ($plugins as $id => $plugin) {
-            $sortorder = component_callback($plugin->type . '_' . $plugin->name, 'sort_order', array($elementid));
-            $sortedplugins[$sortorder] = $plugin;
+        $groups = array();
+
+        foreach ($grouplines as $groupline) {
+            $line = explode('=', $groupline);
+            if (count($line) > 1) {
+                $group = trim(array_shift($line));
+                $plugins = array_map('trim', explode(',', array_shift($line)));
+                $groups[$group] = $plugins;
+            }
         }
 
-        ksort($sortedplugins);
-        foreach ($sortedplugins as $plugin) {
-            component_callback($plugin->type . '_' . $plugin->name, 'init_editor', array($elementid));
+        $modules = array('moodle-editor_atto-editor');
+        $options['context'] = empty($options['context']) ? context_system::instance() : $options['context'];
+
+        $jsplugins = array();
+        foreach ($groups as $group => $plugins) {
+            $groupplugins = array();
+            foreach ($plugins as $plugin) {
+                // Do not die on missing plugin.
+                if (!core_component::get_component_directory('atto_' . $plugin))  {
+                    continue;
+                }
+
+                $jsplugin = array();
+                $jsplugin['name'] = $plugin;
+                $jsplugin['params'] = array();
+                $modules[] = 'moodle-atto_' . $plugin . '-button';
+
+                component_callback('atto_' . $plugin, 'strings_for_js');
+                $extra = component_callback('atto_' . $plugin, 'params_for_js', array($elementid, $options, $fpoptions));
+
+                if ($extra) {
+                    $jsplugin = array_merge($jsplugin, $extra);
+                }
+                // We always need the plugin name.
+                $PAGE->requires->string_for_js('pluginname', 'atto_' . $plugin);
+                $groupplugins[] = $jsplugin;
+            }
+            $jsplugins[] = array('group'=>$group, 'plugins'=>$groupplugins);
         }
+
+        $PAGE->requires->strings_for_js(array(
+                'editor_command_keycode',
+                'editor_control_keycode',
+                'plugin_title_shortcut',
+            ), 'editor_atto');
+        $PAGE->requires->yui_module($modules,
+                                    'Y.M.editor_atto.Editor.init',
+                                    array($this->get_init_params($elementid, $options, $fpoptions, $jsplugins)));
 
     }
 
@@ -104,7 +139,7 @@ class atto_texteditor extends texteditor {
      * @param array $options
      * @param array $fpoptions
      */
-    protected function get_init_params($elementid, array $options=null, array $fpoptions=null) {
+    protected function get_init_params($elementid, array $options = null, array $fpoptions = null, $plugins = null) {
         global $PAGE;
 
         $directionality = get_string('thisdirection', 'langconfig');
@@ -118,7 +153,8 @@ class atto_texteditor extends texteditor {
             'content_css' => $contentcss,
             'language' => $lang,
             'directionality' => $directionality,
-            'filepickeroptions' => array()
+            'filepickeroptions' => array(),
+            'plugins' => $plugins
         );
         if ($fpoptions) {
             $params['filepickeroptions'] = $fpoptions;

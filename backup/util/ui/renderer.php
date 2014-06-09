@@ -55,6 +55,24 @@ class core_backup_renderer extends plugin_renderer_base {
         }
         return html_writer::tag('div', join(get_separator(), $items), array('class'=>'backup_progress clearfix'));
     }
+
+    /**
+     * The backup and restore pages may display a log (if any) in a scrolling box.
+     *
+     * @param string $loghtml Log content in HTML format
+     * @return string HTML content that shows the log
+     */
+    public function log_display($loghtml) {
+        global $OUTPUT;
+        $out = html_writer::start_div('backup_log');
+        $out .= $OUTPUT->heading(get_string('backuplog', 'backup'));
+        $out .= html_writer::start_div('backup_log_contents');
+        $out .= $loghtml;
+        $out .= html_writer::end_div();
+        $out .= html_writer::end_div();
+        return $out;
+    }
+
     /**
      * Prints a dependency notification
      * @param string $message
@@ -73,7 +91,7 @@ class core_backup_renderer extends plugin_renderer_base {
      */
     public function backup_details($details, $nextstageurl) {
         $yestick = $this->output->pix_icon('i/valid', get_string('yes'));
-        $notick = $this->output->pix_icon('i/valid', get_string('no'));
+        $notick = $this->output->pix_icon('i/invalid', get_string('no'));
 
         $html  = html_writer::start_tag('div', array('class'=>'backup-restore'));
 
@@ -203,11 +221,11 @@ class core_backup_renderer extends plugin_renderer_base {
      */
     public function backup_details_unknown(moodle_url $nextstageurl) {
 
-        $html  = html_writer::start_tag('div', array('class' => 'unknownformat'));
-        $html .= $this->output->heading(get_string('errorinvalidformat', 'backup'), 2, 'notifyproblem');
-        $html .= html_writer::tag('div', get_string('errorinvalidformatinfo', 'backup'), array('class' => 'notifyproblem'));
+        $html  = html_writer::start_div('unknownformat');
+        $html .= $this->output->heading(get_string('errorinvalidformat', 'backup'), 2);
+        $html .= $this->output->notification(get_string('errorinvalidformatinfo', 'backup'), 'notifyproblem');
         $html .= $this->output->single_button($nextstageurl, get_string('continue'), 'post');
-        $html .= html_writer::end_tag('div');
+        $html .= html_writer::end_div();
 
         return $html;
     }
@@ -392,7 +410,7 @@ class core_backup_renderer extends plugin_renderer_base {
         }
         if (array_key_exists('warnings', $results)) {
             foreach ($results['warnings'] as $warning) {
-                $output .= $this->output->notification($warning, 'notifywarning notifyproblem');
+                $output .= $this->output->notification($warning, 'notifyproblem');
             }
         }
         return $output.html_writer::end_tag('div');

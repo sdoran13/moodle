@@ -35,8 +35,7 @@
 /**
  * This file defines the global lti administration form
  *
- * @package    mod
- * @subpackage lti
+ * @package mod_lti
  * @copyright  2009 Marc Alier, Jordi Piguillem, Nikolas Galanis
  *  marc.alier@upc.edu
  * @copyright  2009 Universitat Politecnica de Catalunya http://www.upc.edu
@@ -48,6 +47,17 @@
  */
 
 defined('MOODLE_INTERNAL') || die;
+
+/** @var admin_settingpage $settings */
+$modltifolder = new admin_category('modltifolder', new lang_string('pluginname', 'mod_lti'), $module->is_enabled() === false);
+$ADMIN->add('modsettings', $modltifolder);
+
+$ADMIN->add('modltifolder', $settings);
+
+foreach (core_plugin_manager::instance()->get_plugins_of_type('ltisource') as $plugin) {
+    /** @var \mod_lti\plugininfo\ltisource $plugin */
+    $plugin->load_settings($ADMIN, 'modltifolder', $hassiteconfig);
+}
 
 if ($ADMIN->fulltree) {
     require_once($CFG->dirroot.'/mod/lti/locallib.php');
@@ -144,7 +154,7 @@ if ($ADMIN->fulltree) {
                 var configuredColumns = [
                     {key:'name', label:'$typename', sortable:true},
                     {key:'baseURL', label:'$baseurl', sortable:true},
-                    {key:'timecreated', label:'$createdon', sortable:true, formatter:Y.YUI2.widget.DataTable.formatDate},
+                    {key:'timecreated', label:'$createdon', sortable:true},
                     {key:'action', label:'$action'}
                 ];
 
@@ -153,7 +163,7 @@ if ($ADMIN->fulltree) {
                     fields: [
                         {key:'name'},
                         {key:'baseURL'},
-                        {key:'timecreated', parser:'date'},
+                        {key:'timecreated'},
                         {key:'action'}
                     ]
                 };
@@ -173,5 +183,16 @@ if ($ADMIN->fulltree) {
 //]]
 </script>
 ";
-    $settings->add(new admin_setting_heading('lti_types', get_string('external_tool_types', 'lti') . $OUTPUT->help_icon('main_admin', 'lti'), $template));
+    $settings->add(new admin_setting_heading('lti_types', new lang_string('external_tool_types', 'lti') . $OUTPUT->help_icon('main_admin', 'lti'), $template));
+}
+
+if (count($modltifolder->children) <= 1) {
+    // No need for a folder, revert to default activity settings page.
+    $ADMIN->prune('modltifolder');
+} else {
+    // Using the folder, update settings name.
+    $settings->visiblename = new lang_string('ltisettings', 'mod_lti');
+
+    // Tell core we already added the settings structure.
+    $settings = null;
 }

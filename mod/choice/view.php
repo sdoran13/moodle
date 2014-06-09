@@ -45,7 +45,7 @@
         }
     }
 
-    $PAGE->set_title(format_string($choice->name));
+    $PAGE->set_title($choice->name);
     $PAGE->set_heading($course->fullname);
 
     // Mark viewed by user (if required)
@@ -78,7 +78,14 @@
 
 
 /// Display the choice and possibly results
-    add_to_log($course->id, "choice", "view", "view.php?id=$cm->id", $choice->id, $cm->id);
+    $eventdata = array();
+    $eventdata['objectid'] = $choice->id;
+    $eventdata['context'] = $context;
+
+    $event = \mod_choice\event\course_module_viewed::create($eventdata);
+    $event->add_record_snapshot('course_modules', $cm);
+    $event->add_record_snapshot('course', $course);
+    $event->trigger();
 
     /// Check to see if groups are being used in this choice
     $groupmode = groups_get_activity_groupmode($cm);

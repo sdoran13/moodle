@@ -47,7 +47,17 @@
         notice(get_string('nopermissiontoseethechatlog', 'chat'));
     }
 
-    add_to_log($course->id, 'chat', 'report', "report.php?id=$cm->id", $chat->id, $cm->id);
+    $params = array(
+        'context' => $context,
+        'objectid' => $chat->id,
+        'other' => array(
+            'start' => $start,
+            'end' => $end
+        )
+    );
+    $event = \mod_chat\event\sessions_viewed::create($params);
+    $event->add_record_snapshot('chat', $chat);
+    $event->trigger();
 
     $strchats         = get_string('modulenameplural', 'chat');
     $strchat          = get_string('modulename', 'chat');
@@ -176,7 +186,7 @@
 
     if ($show_all) {
         $headingstr = get_string('listing_all_sessions', 'chat') . '&nbsp;';
-        $headingstr .= html_writer::link("report.php?id={$cm->id}&amp;show_all=0", get_string('list_complete_sessions', 'chat'));
+        $headingstr .= html_writer::link("report.php?id={$cm->id}&show_all=0", get_string('list_complete_sessions', 'chat'));
         echo  $OUTPUT->heading($headingstr, 3);
     }
 
@@ -273,7 +283,7 @@
     if (!$show_all and $complete_sessions == 0) {
         echo html_writer::start_tag('p');
         echo get_string('no_complete_sessions_found', 'chat') . '&nbsp;';
-        echo html_writer::link('report.php?id='.$cm->id.'&amp;show_all=1', get_string('list_all_sessions', 'chat'));
+        echo html_writer::link('report.php?id='.$cm->id.'&show_all=1', get_string('list_all_sessions', 'chat'));
         echo html_writer::end_tag('p');
     }
 

@@ -34,6 +34,11 @@ require_once(__DIR__.'/../../testing/classes/util.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class phpunit_util extends testing_util {
+    /**
+     * @var int last value of db writes counter, used for db resetting
+     */
+    public static $lastdbwrites = null;
+
     /** @var array An array of original globals, restored after each test */
     protected static $globals = array();
 
@@ -107,8 +112,8 @@ class phpunit_util extends testing_util {
         // Stop any message redirection.
         phpunit_util::stop_event_redirection();
 
-        // Release memory and indirectly call destroy() methods to release resource handles, etc.
-        gc_collect_cycles();
+        // We used to call gc_collect_cycles here to ensure desctructors were called between tests.
+        // This accounted for 25% of the total time running phpunit - so we removed it.
 
         // Show any unhandled debugging messages, the runbare() could already reset it.
         self::display_debugging_messages();
@@ -191,7 +196,7 @@ class phpunit_util extends testing_util {
         $user = new stdClass();
         $user->id = 0;
         $user->mnethostid = $CFG->mnet_localhost_id;
-        session_set_user($user);
+        \core\session\manager::set_user($user);
 
         // reset all static caches
         \core\event\manager::phpunit_reset();
@@ -200,10 +205,11 @@ class phpunit_util extends testing_util {
         reset_text_filters_cache(true);
         events_get_handlers('reset');
         core_text::reset_caches();
-        if (class_exists('repository')) {
-            repository::reset_caches();
-        }
+        get_message_processors(false, true);
         filter_manager::reset_caches();
+        // Reset internal users.
+        core_user::reset_internal_users();
+
         //TODO MDL-25290: add more resets here and probably refactor them to new core function
 
         // Reset course and module caches.
@@ -214,14 +220,14 @@ class phpunit_util extends testing_util {
         get_fast_modinfo(0, 0, true);
 
         // Reset other singletons.
-        if (class_exists('plugin_manager')) {
-            plugin_manager::reset_caches(true);
+        if (class_exists('core_plugin_manager')) {
+            core_plugin_manager::reset_caches(true);
         }
-        if (class_exists('available_update_checker')) {
-            available_update_checker::reset_caches(true);
+        if (class_exists('\core\update\checker')) {
+            \core\update\checker::reset_caches(true);
         }
-        if (class_exists('available_update_deployer')) {
-            available_update_deployer::reset_caches(true);
+        if (class_exists('\core\update\deployer')) {
+            \core\update\deployer::reset_caches(true);
         }
 
         // purge dataroot directory
@@ -246,6 +252,27 @@ class phpunit_util extends testing_util {
             $warnings = implode("\n", $warnings);
             trigger_error($warnings, E_USER_WARNING);
         }
+    }
+
+    /**
+     * Reset all database tables to default values.
+     * @static
+     * @return bool true if reset done, false if skipped
+     */
+    public static function reset_database() {
+        global $DB;
+
+        if (!is_null(self::$lastdbwrites) and self::$lastdbwrites == $DB->perf_get_writes()) {
+            return false;
+        }
+
+        if (!parent::reset_database()) {
+            return false;
+        }
+
+        self::$lastdbwrites = $DB->perf_get_writes();
+
+        return true;
     }
 
     /**
@@ -274,63 +301,7 @@ class phpunit_util extends testing_util {
      * @return void
      */
     public static function bootstrap_moodle_info() {
-        global $CFG;
-
-        // All developers have to understand English, do not localise!
-
-        $release = null;
-        require("$CFG->dirroot/version.php");
-
-        echo "Moodle $release, $CFG->dbtype";
-        if ($hash = self::get_git_hash()) {
-            echo ", $hash";
-        }
-        echo "\n";
-    }
-
-    /**
-     * Try to get current git hash of the Moodle in $CFG->dirroot.
-     * @return string null if unknown, sha1 hash if known
-     */
-    public static function get_git_hash() {
-        global $CFG;
-
-        // This is a bit naive, but it should mostly work for all platforms.
-
-        if (!file_exists("$CFG->dirroot/.git/HEAD")) {
-            return null;
-        }
-
-        $ref = file_get_contents("$CFG->dirroot/.git/HEAD");
-        if ($ref === false) {
-            return null;
-        }
-
-        $ref = trim($ref);
-
-        if (strpos($ref, 'ref: ') !== 0) {
-            return null;
-        }
-
-        $ref = substr($ref, 5);
-
-        if (!file_exists("$CFG->dirroot/.git/$ref")) {
-            return null;
-        }
-
-        $hash = file_get_contents("$CFG->dirroot/.git/$ref");
-
-        if ($hash === false) {
-            return null;
-        }
-
-        $hash = trim($hash);
-
-        if (strlen($hash) != 40) {
-            return null;
-        }
-
-        return $hash;
+        echo self::get_site_info();
     }
 
     /**
@@ -441,6 +412,13 @@ class phpunit_util extends testing_util {
         $options['fullname'] = 'PHPUnit test site';
 
         install_cli_database($options, false);
+
+        // Disable all logging for performance and sanity reasons.
+        set_config('enabled_stores', '', 'tool_log');
+
+        // We need to keep the installed dataroot filedir files.
+        // So each time we reset the dataroot before running a test, the default files are still installed.
+        self::save_original_data_files();
 
         // install timezone info
         $timezones = get_records_csv($CFG->libdir.'/timezone.txt', 'timezone');

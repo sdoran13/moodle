@@ -14,10 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-namespace core\event;
-
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Role assigned event.
  *
@@ -26,11 +22,35 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+namespace core\event;
+
+defined('MOODLE_INTERNAL') || die();
+
+/**
+ * Role assigned event.
+ *
+ * @property-read array $other {
+ *      Extra information about event.
+ *
+ *      - int id: role assigned id.
+ *      - string component: name of component.
+ *      - int itemid: id of the item.
+ * }
+ *
+ * @package    core
+ * @since      Moodle 2.6
+ * @copyright  2013 Petr Skoda {@link http://skodak.org}
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class role_assigned extends base {
+
+    /**
+     * Set basic properties for the event.
+     */
     protected function init() {
         $this->data['objecttable'] = 'role';
         $this->data['crud'] = 'c';
-        $this->data['level'] = self::LEVEL_OTHER;
+        $this->data['edulevel'] = self::LEVEL_OTHER;
     }
 
     /**
@@ -48,7 +68,8 @@ class role_assigned extends base {
      * @return string
      */
     public function get_description() {
-        return 'Role '.$this->objectid.' was assigned to user '.$this->relateduserid.' in context '.$this->contextid;
+        return "The user with id '$this->userid' assigned the role with id '$this->objectid' to the user with id " .
+            "'$this->relateduserid'.";
     }
 
     /**
@@ -56,7 +77,7 @@ class role_assigned extends base {
      * @return \moodle_url
      */
     public function get_url() {
-        return new moodle_url('/admin/roles/assign.php', array('contextid' => $this->contextid, 'roleid' => $this->objectid));
+        return new \moodle_url('/admin/roles/assign.php', array('contextid' => $this->contextid, 'roleid' => $this->objectid));
     }
 
     /**
@@ -74,7 +95,7 @@ class role_assigned extends base {
      * @return mixed
      */
     protected function get_legacy_eventdata() {
-        return $this->get_record_snapshot('role_assignments', $this->data['other']['id']);
+        return $this->get_record_snapshot('role_assignments', $this->other['id']);
     }
 
     /**

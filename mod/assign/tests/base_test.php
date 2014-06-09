@@ -223,10 +223,6 @@ class mod_assign_base_testcase extends advanced_testcase {
  */
 class testable_assign extends assign {
 
-    public function testable_process_reveal_identities() {
-        return parent::process_reveal_identities();
-    }
-
     public function testable_show_intro() {
         return parent::show_intro();
     }
@@ -259,27 +255,11 @@ class testable_assign extends assign {
         return parent::process_add_attempt($userid);
     }
 
-    public function testable_process_lock($userid = 0) {
-        return parent::process_lock($userid);
-    }
-
     public function testable_process_save_quick_grades($postdata) {
         // Ugly hack to get something into the method.
         global $_POST;
         $_POST = $postdata;
         return parent::process_save_quick_grades();
-    }
-
-    public function testable_process_unlock($userid = 0) {
-        return parent::process_unlock($userid);
-    }
-
-    public function testable_process_copy_previous_attempt(&$notices) {
-        return parent::process_copy_previous_attempt($notices);
-    }
-
-    public function testable_process_revert_to_draft($userid = 0) {
-        return parent::process_revert_to_draft($userid);
     }
 
     public function testable_process_set_batch_marking_allocation($selectedusers, $markerid) {
@@ -309,5 +289,49 @@ class testable_assign extends assign {
     public function testable_get_graders($userid) {
         // Changed method from protected to public.
         return parent::get_graders($userid);
+    }
+
+    public function testable_view_batch_set_workflow_state() {
+        global $CFG;
+
+        require_once($CFG->dirroot . '/mod/assign/batchsetmarkingworkflowstateform.php');
+
+        // Mock submit data.
+        $data = array();
+        $data['selectedusers'] = '1';
+        mod_assign_batch_set_marking_workflow_state_form::mock_submit($data);
+
+        // Set required variables in the form - not valid just allows us to continue.
+        $formparams = array();
+        $formparams['users'] = array(1);
+        $formparams['usershtml'] = 1;
+        $formparams['cm'] = $this->get_course_module()->id;
+        $formparams['context'] = $this->get_context();
+        $formparams['markingworkflowstates'] = 1;
+        $mform = new mod_assign_batch_set_marking_workflow_state_form('', $formparams);
+
+        return parent::view_batch_set_workflow_state($mform);
+    }
+
+    public function testable_view_batch_markingallocation() {
+        global $CFG;
+
+        require_once($CFG->dirroot . '/mod/assign/batchsetallocatedmarkerform.php');
+
+        // Mock submit data.
+        $data = array();
+        $data['selectedusers'] = '1';
+        mod_assign_batch_set_allocatedmarker_form::mock_submit($data);
+
+        // Set required variables in the form - not valid just allows us to continue.
+        $formparams = array();
+        $formparams['users'] = array(1);
+        $formparams['usershtml'] = 1;
+        $formparams['cm'] = $this->get_course_module()->id;
+        $formparams['context'] = $this->get_context();
+        $formparams['markers'] = 1;
+        $mform = new mod_assign_batch_set_allocatedmarker_form('', $formparams);
+
+        return parent::view_batch_markingallocation($mform);
     }
 }

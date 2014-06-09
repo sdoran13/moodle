@@ -326,7 +326,6 @@ function groups_create_grouping($data, $editoroptions=null) {
         'objectid' => $id
     );
     $event = \core\event\grouping_created::create($params);
-    $event->set_legacy_eventdata($data);
     $event->trigger();
 
     return $id;
@@ -442,7 +441,6 @@ function groups_update_grouping($data, $editoroptions=null) {
         'objectid' => $data->id
     );
     $event = \core\event\grouping_updated::create($params);
-    $event->set_legacy_eventdata($data);
     $event->trigger();
 
     return true;
@@ -739,7 +737,8 @@ function groups_get_potential_members($courseid, $roleid = null, $cohortid = nul
         $cohortjoin = "";
     }
 
-    $sql = "SELECT u.id, u.username, u.firstname, u.lastname, u.idnumber
+    $allusernamefields = get_all_user_name_fields(true, 'u');
+    $sql = "SELECT u.id, u.username, $allusernamefields, u.idnumber
               FROM {user} u
               JOIN ($esql) e ON e.id = u.id
        $cohortjoin

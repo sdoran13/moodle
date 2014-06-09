@@ -51,7 +51,15 @@ require_login($course, false, $cm);
 $contextmodule = context_module::instance($cm->id);
 require_capability('mod/scorm:viewreport', $contextmodule);
 
-add_to_log($course->id, 'scorm', 'userreport', 'userreport.php?id='.$id, $scorm->id, $id);
+// Trigger a user report viewed event.
+$event = \mod_scorm\event\user_report_viewed::create(array(
+    'context' => $contextmodule,
+    'relateduserid' => $userid,
+    'other' => array('attemptid' => $attempt, 'instanceid' => $scorm->id)
+));
+$event->add_record_snapshot('course_modules', $cm);
+$event->add_record_snapshot('scorm', $scorm);
+$event->trigger();
 
 // Print the page header.
 $strreport = get_string('report', 'scorm');
@@ -72,7 +80,7 @@ require($CFG->dirroot . '/mod/scorm/report/userreporttabs.php');
 $output = $PAGE->get_renderer('mod_scorm');
 echo $output->view_user_heading($user, $course, $PAGE->url, $attempt, $attemptids);
 
-if ($scoes = $DB->get_records_select('scorm_scoes', "scorm = ? ORDER BY id", array($scorm->id))) {
+if ($scoes = $DB->get_records('scorm_scoes', array('scorm' => $scorm->id), 'sortorder, id')) {
     // Print general score data.
     $table = new html_table();
     $table->head = array(

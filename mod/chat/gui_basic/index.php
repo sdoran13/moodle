@@ -43,11 +43,11 @@ if (!$cm = get_coursemodule_from_instance('chat', $chat->id, $course->id)) {
 $context = context_module::instance($cm->id);
 require_login($course, false, $cm);
 require_capability('mod/chat:chat', $context);
-$PAGE->set_pagelayout('base');
+$PAGE->set_pagelayout('popup');
 $PAGE->set_popup_notification_allowed(false);
 
-/// Check to see if groups are being used here
- if ($groupmode = groups_get_activity_groupmode($cm)) {   // Groups are being used
+// Check to see if groups are being used here.
+ if ($groupmode = groups_get_activity_groupmode($cm)) { // Groups are being used.
     if ($groupid = groups_get_activity_group($cm)) {
         if (!$group = groups_get_group($groupid)) {
             print_error('invalidgroupid');
@@ -93,19 +93,11 @@ if (!empty($refresh) and data_submitted()) {
 } else if (empty($refresh) and data_submitted() and confirm_sesskey()) {
 
     if ($message!='') {
-        $newmessage = new stdClass();
-        $newmessage->chatid = $chat->id;
-        $newmessage->userid = $USER->id;
-        $newmessage->groupid = $groupid;
-        $newmessage->systrem = 0;
-        $newmessage->message = $message;
-        $newmessage->timestamp = time();
-        $DB->insert_record('chat_messages', $newmessage);
-        $DB->insert_record('chat_messages_current', $newmessage);
+
+        $chatuser = $DB->get_record('chat_users', array('sid' => $chat_sid));
+        chat_send_chatmessage($chatuser, $message, 0, $cm);
 
         $DB->set_field('chat_users', 'lastmessageping', time(), array('sid'=>$chat_sid));
-
-        add_to_log($course->id, 'chat', 'talk', "view.php?id=$cm->id", $chat->id, $cm->id);
     }
 
     chat_delete_old_users();

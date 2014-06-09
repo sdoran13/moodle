@@ -14,10 +14,14 @@
     require_course_login($course);
     $PAGE->set_pagelayout('incourse');
 
-    add_to_log($course->id, "survey", "view all", "index.php?id=$course->id", "");
+    $params = array(
+        'context' => context_course::instance($course->id),
+        'courseid' => $course->id
+    );
+    $event = \mod_survey\event\course_module_instance_list_viewed::create($params);
+    $event->trigger();
 
     $strsurveys = get_string("modulenameplural", "survey");
-    $strsectionname  = get_string('sectionname', 'format_'.$course->format);
     $strname = get_string("name");
     $strstatus = get_string("status");
     $strdone  = get_string("done", "survey");
@@ -39,6 +43,7 @@
     $table->width = '100%';
 
     if ($usesections) {
+        $strsectionname = get_string('sectionname', 'format_'.$course->format);
         $table->head  = array ($strsectionname, $strname, $strstatus);
     } else {
         $table->head  = array ($strname, $strstatus);

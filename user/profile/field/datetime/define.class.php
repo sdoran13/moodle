@@ -15,9 +15,16 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Define datetime fields.
+ * This file contains the datetime profile field definition class.
  *
  * @package profilefield_datetime
+ * @copyright 2010 Mark Nelson <markn@moodle.com>
+ * @license http://www.gnu.org/copyleft/gpl.html GNU Public License
+ */
+
+/**
+ * Define datetime fields.
+ *
  * @copyright 2010 Mark Nelson <markn@moodle.com>
  * @license http://www.gnu.org/copyleft/gpl.html GNU Public License
  */
@@ -36,14 +43,8 @@ class profile_define_datetime extends profile_define_base {
         list($year, $month, $day) = explode('_', date('Y_m_d'));
         $currentdate = $calendartype->convert_from_gregorian($year, $month, $day);
         $currentyear = $currentdate['year'];
-        $startyear = $calendartype->get_min_year();
-        $endyear = $calendartype->get_max_year();
 
-        // Create array for the years.
-        $arryears = array();
-        for ($i = $startyear; $i <= $endyear; $i++) {
-            $arryears[$i] = $i;
-        }
+        $arryears = $calendartype->get_years();
 
         // Add elements.
         $form->addElement('select', 'param1', get_string('startyear', 'profilefield_datetime'), $arryears);

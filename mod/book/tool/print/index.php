@@ -76,8 +76,7 @@ if ($chapter) {
     if ($chapter->hidden) {
         require_capability('mod/book:viewhiddenchapters', $context);
     }
-
-    add_to_log($course->id, 'book', 'print chapter', 'tool/print/index.php?id='.$cm->id.'&chapterid='.$chapter->id, $chapter->id, $cm->id);
+    \booktool_print\event\chapter_printed::create_from_chapter($book, $context, $chapter)->trigger();
 
     // page header
     ?>
@@ -123,7 +122,8 @@ if ($chapter) {
     echo '</body> </html>';
 
 } else {
-    add_to_log($course->id, 'book', 'print', 'tool/print/index.php?id='.$cm->id, $book->id, $cm->id);
+    \booktool_print\event\book_printed::create_from_book($book, $context)->trigger();
+
     $allchapters = $DB->get_records('book_chapters', array('bookid'=>$book->id), 'pagenum');
     $book->intro = file_rewrite_pluginfile_urls($book->intro, 'pluginfile.php', $context->id, 'mod_book', 'intro', null);
 
